@@ -13,7 +13,10 @@ class Rectifier{
 		Mat Q;
 		Mat c_l_m1, c_l_m2, c_r_m1, c_r_m2;
 	public:
-		Rectifier(const string& param_l, const string& param_r); // from yaml
+		Rectifier(const Mat&, const Mat&, const Mat&, const Mat&,
+				const Mat&, const Mat&, const Mat&, const Mat&,
+				float width, float height
+				); // from yaml
 		//Rectifier(const string& topic); //ROS topic
 		//Rectifier(); // load from parameter server
 		void apply(const Mat& l, const Mat& r, Mat& rect_l, Mat& rect_r);

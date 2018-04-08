@@ -1,0 +1,14 @@
+<launch>
+	<node pkg="nodelet" type="nodelet" name="pcl_manager"  args="manager" output="screen">
+		<remap from="pcl_passthrough/input" to="/stereo/pcl"/>
+		<remap from="pcl_passthrough/output" to="/stereo/ground"/>
+	</node>
+
+	<node pkg="nodelet" type="nodelet" name="pcl_passthrough" args="load pcl/PassThrough pcl_manager" output="screen">
+		<param name="filter_limit_min" value="-0.05"/>
+		<param name="filter_limit_max" value="0.1"/>
+		<param name="input_frame" value="odom"/>
+		<param name="output_frame" value="odom"/>
+	</node>
+
+</launch>

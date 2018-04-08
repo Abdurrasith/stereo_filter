@@ -22,6 +22,7 @@
 #include "ros/package.h"
 
 #include <message_filters/synchronizer.h>
+#include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
 
 #include <image_transport/image_transport.h>
@@ -32,6 +33,7 @@
 
 #include "stereo_msgs/DisparityImage.h"
 #include "sensor_msgs/Image.h"
+#include "sensor_msgs/CameraInfo.h"
 
 #include "sensor_msgs/PointCloud2.h"
 #include "sensor_msgs/PointField.h"
@@ -78,9 +80,9 @@ class Parallel_cvImg2ROSPCL: public cv::ParallelLoopBody{
 				float z = xyz_ptr[i_3+2];
 				auto& m= msg_ptr[i];
 				if (z <= 10 && !std::isinf(z)){ // 10000 = MISSING_Z
-					m.x = xyz_ptr[i_3+2];
-					m.y = -xyz_ptr[i_3];
-					m.z = -xyz_ptr[i_3+1];
+					m.x = xyz_ptr[i_3];
+					m.y = xyz_ptr[i_3+1];
+					m.z = xyz_ptr[i_3+2];
 					m.b = bgr_ptr[i_3];
 					m.g = bgr_ptr[i_3+1];;
 					m.r = bgr_ptr[i_3+2];;
@@ -162,25 +164,29 @@ string type2str(int type) {
 
 class StereoFilter{
     typedef message_filters::sync_policies::ApproximateTime<
-        sensor_msgs::Image, sensor_msgs::Image
+        sensor_msgs::Image, sensor_msgs::CameraInfo,
+		sensor_msgs::Image, sensor_msgs::CameraInfo
         > StereoSyncPolicy;
     typedef message_filters::Synchronizer<StereoSyncPolicy> ApproximateSync;
 
     protected:
         Mat img_l, img_r;
-        Mat disp, raw_disp;
+        Mat disp, dist, raw_disp;
+		float baseline;
+
         FilteredSGBM block_matcher; // disparity matching
-        //Rectifier rectifier;
+
+		boost::shared_ptr<Rectifier> rectifier;
 
         ros::NodeHandle nh;
         image_transport::ImageTransport it;
         boost::shared_ptr<ApproximateSync> sync;
 
-        image_transport::SubscriberFilter img_l_sub;
-        image_transport::SubscriberFilter img_r_sub;
+        image_transport::SubscriberFilter img_l_sub, img_r_sub;
+		message_filters::Subscriber<sensor_msgs::CameraInfo> img_l_info_sub, img_r_info_sub;
 
         image_transport::Publisher disp_pub;
-        image_transport::Publisher pcl_pub;
+        ros::Publisher pcl_pub;
 
     public:
         StereoFilter():
@@ -190,38 +196,89 @@ class StereoFilter{
             ROS_INFO("Stereo Filter Starting Up");
             disp_pub = it.advertise("disparity", 1);
             image_transport::TransportHints hints("raw", ros::TransportHints(), nh);
+
+			ros::param::get("~baseline", baseline);
+
             img_l_sub.subscribe(it, "left", 1, hints);
             img_r_sub.subscribe(it, "right", 1, hints);
+			img_l_info_sub.subscribe(nh, "left_info", 1);
+			img_r_info_sub.subscribe(nh, "right_info", 1);
+			pcl_pub=nh.advertise<sensor_msgs::PointCloud2>("pcl", 1);
+
             sync.reset(new ApproximateSync(StereoSyncPolicy(1),
-                        img_l_sub, img_r_sub));
+                        img_l_sub, img_l_info_sub, img_r_sub, img_r_info_sub));
             sync->registerCallback(
-                    boost::bind(&StereoFilter::callback, this, _1, _2));
+                    boost::bind(&StereoFilter::callback, this, _1, _2, _3, _4));
         }
         void callback(
                 const sensor_msgs::ImageConstPtr& left_msg,
-                const sensor_msgs::ImageConstPtr& right_msg){
-            cv_bridge::CvImagePtr cv_l_ptr, cv_r_ptr, cv_d_ptr;
+				const sensor_msgs::CameraInfoConstPtr& left_info_msg,
+                const sensor_msgs::ImageConstPtr& right_msg,
+				const sensor_msgs::CameraInfoConstPtr& right_info_msg
+				){
 
+			if(!rectifier){
+
+				cv::Mat m_l(3,3, CV_64FC1, (double*)left_info_msg->K.data()),
+						d_l(1,5, CV_64FC1, (double*)left_info_msg->D.data()), 
+						r_l(3,3, CV_64FC1, (double*)left_info_msg->R.data()),
+						p_l(3,4, CV_64FC1, (double*)left_info_msg->P.data()),
+						m_r(3,3, CV_64FC1, (double*)right_info_msg->K.data()),
+						d_r(1,5, CV_64FC1, (double*)right_info_msg->D.data()), 
+						r_r(3,3, CV_64FC1, (double*)right_info_msg->R.data()),
+						p_r(3,4, CV_64FC1, (double*)right_info_msg->P.data());
+
+				// apply corrections
+				p_r.at<double>(0, 3) = -p_r.at<double>(0,0) * baseline;
+				std::cout << "p_r" << p_r << std::endl;
+
+				rectifier.reset(new Rectifier(m_l, d_l, r_l, p_l,
+							m_r, d_r, r_r, p_r,
+							left_info_msg->width,
+							left_info_msg->height
+							));
+
+			}
+
+			if(!rectifier)
+				return;
+
+            cv_bridge::CvImagePtr cv_l_ptr, cv_r_ptr, cv_d_ptr;
             cv_l_ptr = cv_bridge::toCvCopy(left_msg, sensor_msgs::image_encodings::BGR8);
             cv_r_ptr = cv_bridge::toCvCopy(right_msg, sensor_msgs::image_encodings::BGR8);
 
+			rectifier->apply(cv_l_ptr->image, cv_r_ptr->image, img_l, img_r);
+
+
             //here, assume rectified
             cv::Rect roi;
-            block_matcher.compute(cv_l_ptr->image, cv_r_ptr->image, disp, &raw_disp, &roi);
+            block_matcher.compute(img_l, img_r, disp, &raw_disp, &roi);
+			rectifier->convert(disp, dist);
 
             // TODO : better disparity, etc.
             // max disparity 
             double min, max;
-            cv::minMaxLoc(disp, &min, &max);
-            disp.convertTo(disp, CV_8UC1, 255.0/(max-min), -min);
-            disp = disp(roi);
+            cv::minMaxLoc(dist, &min, &max);
+			ROS_INFO("min/max %f %f", min, max);
+            //disp.convertTo(disp, CV_8UC1, 255.0/(max-min), -min);
+            //disp.convertTo(disp, CV_8UC1, 0.5 / 16.0, 0.0);
+            //disp = disp(roi);
 
             // output ...
             cv_bridge::CvImage disp_msg;
             disp_msg.header = left_msg->header;
-            disp_msg.encoding = sensor_msgs::image_encodings::MONO8;
-            disp_msg.image = disp;
+            //disp_msg.encoding = "uint16";//sensor_msgs::image_encodings::MONO8;
+            //disp_msg.encoding = sensor_msgs::image_encodings::TYPE_16UC1;//"uint16";//sensor_msgs::image_encodings::MONO8;
+            disp_msg.encoding = sensor_msgs::image_encodings::TYPE_32FC3;//"uint16";//sensor_msgs::image_encodings::MONO8;
+            //disp_msg.encoding = sensor_msgs::image_encodings::TYPE_16UC1;//"uint16";//sensor_msgs::image_encodings::MONO8;
+            disp_msg.image = dist;
             disp_pub.publish(disp_msg.toImageMsg());
+
+
+			sensor_msgs::PointCloud2 pcl_msg;
+			pcl_msg.header.frame_id = left_msg->header.frame_id;
+			dist2pcl(dist, img_l, pcl_msg);
+			pcl_pub.publish(pcl_msg);
 
             //stereo_msgs::DisparityImage disp_out;
             //disp_out.

@@ -1,7 +1,32 @@
 <launch>
-	<node pkg="tf" type="static_transform_publisher" name="camera_to_head" args="0.114 -0.03 0.05 0 0 0 1 link_5 camera_link 100" /> <!-- TODO : Fix Transform -->
-	<node pkg="stereo_filter" type="stereo_filter" name="stereo_filter" output="screen">
-		<param name="dev_l" value="/dev/video1"/>
-		<param name="dev_r" value="/dev/video2"/>
-	</node>
+	<group ns="stereo">
+		<node pkg="stereo_filter" type="stereo_filter" name="stereo_filter" output="screen">
+			<param name="baseline" value="0.6096"/>
+			<remap from="left" to="left/image_raw"/>
+			<remap from="right" to="right/image_raw"/>
+			<remap from="left_info" to="left/camera_info"/>
+			<remap from="right_info" to="right/camera_info"/>
+			<remap from="disparity" to="depth"/>
+		</node>
+
+		<!--
+		<node pkg="nodelet" type="nodelet" name="nodelet_manager"  args="manager" output="screen">
+		</node>
+		-->
+
+		<!--
+		<node pkg="nodelet" type="nodelet" name="disp_to_depth" args="load depth_image_proc/convert_metric nodelet_manager" output="screen">
+			<remap from="image_raw" to="disp"/>
+			<remap from="image" to="depth"/>
+		</node>
+		-->
+
+<!--
+		<node pkg="nodelet" type="nodelet" name="depth_to_cloud" args="load depth_image_proc/point_cloud_xyzrgb nodelet_manager" output="screen">
+			<remap from="rgb/camera_info" to="left/camera_info"/>
+			<remap from="rgb/image_rect_color" to="left/image_raw"/>
+			<remap from="depth_registered/image_rect" to="depth"/>
+		</node>
+-->
+	</group>
 </launch>
