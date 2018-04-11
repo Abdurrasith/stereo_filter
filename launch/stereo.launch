@@ -1,12 +1,17 @@
 <launch>
+	<!-- override camera_info baseline -->
+	<arg name="baseline" default="0.6096"/>
+	<arg name="override_baseline" default="false"/>
+
 	<group ns="stereo">
 		<node pkg="stereo_filter" type="stereo_filter" name="stereo_filter" output="screen">
-			<param name="baseline" value="0.6096"/>
+			<param name="baseline" value="$(arg baseline)"/>
+			<param name="override_baseline" value="$(arg override_baseline)"/>
 			<remap from="left" to="left/image_raw"/>
 			<remap from="right" to="right/image_raw"/>
 			<remap from="left_info" to="left/camera_info"/>
 			<remap from="right_info" to="right/camera_info"/>
-			<remap from="disparity" to="depth"/>
+			<!--<remap from="disparity" to="depth"/>-->
 		</node>
 
 		<!--

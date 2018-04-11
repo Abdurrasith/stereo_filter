@@ -52,7 +52,7 @@ Rectifier::Rectifier(
 	double Tx = p_r.at<double>(0,3) / p_r.at<double>(0,0);
 	double rcx = p_r.at<double>(0,2);
 
-	//printf("fx: %f; cx: %f; cy: %f; fy: %f; Tx: %f; rcx: %f\n", fx,cx,cy,fy,Tx,rcx);
+	printf("fx: %f; cx: %f; cy: %f; fy: %f; Tx: %f; rcx: %f\n", fx,cx,cy,fy,Tx,rcx);
 
 	//Mat T = (Mat_<double>(3,1) << baseline, 0, 0); //-baseline??
 	//Mat r1,r2,p1,p2;
