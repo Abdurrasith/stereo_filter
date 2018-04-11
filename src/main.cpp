@@ -229,8 +229,8 @@ class StereoFilter{
 						p_r(3,4, CV_64FC1, (double*)right_info_msg->P.data());
 
 				// apply corrections
-				p_r.at<double>(0, 3) = -p_r.at<double>(0,0) * baseline;
-				std::cout << "p_r" << p_r << std::endl;
+				//p_r.at<double>(0, 3) = -p_r.at<double>(0,0) * baseline;
+				//std::cout << "p_r" << p_r << std::endl;
 
 				rectifier.reset(new Rectifier(m_l, d_l, r_l, p_l,
 							m_r, d_r, r_r, p_r,
@@ -259,7 +259,7 @@ class StereoFilter{
             // max disparity 
             double min, max;
             cv::minMaxLoc(dist, &min, &max);
-			ROS_INFO("min/max %f %f", min, max);
+			//ROS_INFO("min/max %f %f", min, max);
             //disp.convertTo(disp, CV_8UC1, 255.0/(max-min), -min);
             //disp.convertTo(disp, CV_8UC1, 0.5 / 16.0, 0.0);
             //disp = disp(roi);
@@ -269,9 +269,9 @@ class StereoFilter{
             disp_msg.header = left_msg->header;
             //disp_msg.encoding = "uint16";//sensor_msgs::image_encodings::MONO8;
             //disp_msg.encoding = sensor_msgs::image_encodings::TYPE_16UC1;//"uint16";//sensor_msgs::image_encodings::MONO8;
-            disp_msg.encoding = sensor_msgs::image_encodings::TYPE_32FC3;//"uint16";//sensor_msgs::image_encodings::MONO8;
-            //disp_msg.encoding = sensor_msgs::image_encodings::TYPE_16UC1;//"uint16";//sensor_msgs::image_encodings::MONO8;
-            disp_msg.image = dist;
+            //disp_msg.encoding = sensor_msgs::image_encodings::TYPE_32FC3;//"uint16";//sensor_msgs::image_encodings::MONO8;
+            disp_msg.encoding = sensor_msgs::image_encodings::TYPE_16UC1;
+            disp_msg.image = disp;
             disp_pub.publish(disp_msg.toImageMsg());
 
 
