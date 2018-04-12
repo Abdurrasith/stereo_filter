@@ -171,8 +171,10 @@ class StereoFilter{
 
     protected:
         Mat img_l, img_r;
+        Mat img_l_g, img_r_g;
         Mat disp, dist, raw_disp;
 		float baseline;
+		bool override_baseline;
 
         FilteredSGBM block_matcher; // disparity matching
 
@@ -198,6 +200,7 @@ class StereoFilter{
             image_transport::TransportHints hints("raw", ros::TransportHints(), nh);
 
 			ros::param::get("~baseline", baseline);
+			ros::param::get("~override_baseline", override_baseline);
 
             img_l_sub.subscribe(it, "left", 1, hints);
             img_r_sub.subscribe(it, "right", 1, hints);
@@ -228,10 +231,11 @@ class StereoFilter{
 						r_r(3,3, CV_64FC1, (double*)right_info_msg->R.data()),
 						p_r(3,4, CV_64FC1, (double*)right_info_msg->P.data());
 
-				// apply corrections
-				//p_r.at<double>(0, 3) = -p_r.at<double>(0,0) * baseline;
-				//std::cout << "p_r" << p_r << std::endl;
+				if(override_baseline){
+					p_r.at<double>(0, 3) = -p_r.at<double>(0,0) * baseline;
+				}
 
+				// apply corrections
 				rectifier.reset(new Rectifier(m_l, d_l, r_l, p_l,
 							m_r, d_r, r_r, p_r,
 							left_info_msg->width,
@@ -248,7 +252,9 @@ class StereoFilter{
             cv_r_ptr = cv_bridge::toCvCopy(right_msg, sensor_msgs::image_encodings::BGR8);
 
 			rectifier->apply(cv_l_ptr->image, cv_r_ptr->image, img_l, img_r);
-
+			
+			cv::GaussianBlur(img_l, img_l, cv::Size(5,5), 0.0, 0.0);
+			cv::GaussianBlur(img_r, img_r, cv::Size(5,5), 0.0, 0.0);
 
             //here, assume rectified
             cv::Rect roi;
@@ -267,13 +273,9 @@ class StereoFilter{
             // output ...
             cv_bridge::CvImage disp_msg;
             disp_msg.header = left_msg->header;
-            //disp_msg.encoding = "uint16";//sensor_msgs::image_encodings::MONO8;
-            //disp_msg.encoding = sensor_msgs::image_encodings::TYPE_16UC1;//"uint16";//sensor_msgs::image_encodings::MONO8;
-            //disp_msg.encoding = sensor_msgs::image_encodings::TYPE_32FC3;//"uint16";//sensor_msgs::image_encodings::MONO8;
             disp_msg.encoding = sensor_msgs::image_encodings::TYPE_16UC1;
             disp_msg.image = disp;
             disp_pub.publish(disp_msg.toImageMsg());
-
 
 			sensor_msgs::PointCloud2 pcl_msg;
 			pcl_msg.header.frame_id = left_msg->header.frame_id;

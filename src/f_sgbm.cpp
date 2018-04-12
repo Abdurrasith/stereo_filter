@@ -7,11 +7,13 @@ FilteredSGBM::FilteredSGBM(){
 	//float lambda = 8000.0;
 	//float sigma = 1.5;
 	int wsize = 11;
-	int max_disp = 128;
+	int max_disp = 256;
 	float lambda = 8000.0;
 	float sigma = 1.5;
-	int P1 = 200;
-	int P2 = 400;
+	int P1 = 8*3*wsize*wsize;
+	int P2 = 32*3*wsize*wsize;
+	//int P1 = 200;
+	//int P2 = 400;
 	int disp12MaxDiff = 0;
 	int prefilterCap = 9;
 	int uniquenessRatio = 15;
