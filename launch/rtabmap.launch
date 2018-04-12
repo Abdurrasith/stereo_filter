@@ -1,0 +1,9 @@
+<launch>
+    <include file="$(find rtabmap_ros)/launch/rtabmap.launch">
+        <arg name="stereo" value="true"/>
+        <arg name="frame_id" value="base_link"/>
+        <arg name="stereo_namespace" value="/stereo"/>
+        <arg name="visual_odometry" value="false"/>
+        <arg name="odom_frame_id" value="odom"/>
+    </include>
+</launch>

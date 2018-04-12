@@ -14,24 +14,5 @@
 			<!--<remap from="disparity" to="depth"/>-->
 		</node>
 
-		<!--
-		<node pkg="nodelet" type="nodelet" name="nodelet_manager"  args="manager" output="screen">
-		</node>
-		-->
-
-		<!--
-		<node pkg="nodelet" type="nodelet" name="disp_to_depth" args="load depth_image_proc/convert_metric nodelet_manager" output="screen">
-			<remap from="image_raw" to="disp"/>
-			<remap from="image" to="depth"/>
-		</node>
-		-->
-
-<!--
-		<node pkg="nodelet" type="nodelet" name="depth_to_cloud" args="load depth_image_proc/point_cloud_xyzrgb nodelet_manager" output="screen">
-			<remap from="rgb/camera_info" to="left/camera_info"/>
-			<remap from="rgb/image_rect_color" to="left/image_raw"/>
-			<remap from="depth_registered/image_rect" to="depth"/>
-		</node>
--->
 	</group>
 </launch>

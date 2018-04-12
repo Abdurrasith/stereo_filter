@@ -261,6 +261,12 @@ class StereoFilter{
             block_matcher.compute(img_l, img_r, disp, &raw_disp, &roi);
 			rectifier->convert(disp, dist);
 
+            // hack specific to current configuration:
+            // kill bottom few pixels cuz invalid
+            // xywh
+            cv::Rect roi_hack(0, 0, dist.cols, 455);
+            dist = dist(roi_hack);
+
             // TODO : better disparity, etc.
             // max disparity 
             double min, max;
