@@ -1,0 +1,15 @@
+<launch>
+    <arg name="dev_l" default="/dev/video1"/>
+    <arg name="dev_r" default="/dev/video2"/>
+    <arg name="size" default="7x5"/>
+    <arg name="square" default="0.034925"/>
+    <arg name="stereo" default="stereo"/>
+
+    <node pkg="camera_calibration" type="cameracalibrator.py" name="calibrator"
+        args="--size $(arg size) --square $(arg square)" output="screen">
+        <remap from="left" to="$(arg stereo)/left/image_raw"/>
+        <remap from="right" to="$(arg stereo)/right/image_raw"/>
+        <param name="left_camera" value="$(arg stereo)/left"/>
+        <param name="right_camera" value="$(arg stereo)/right"/>
+    </node>
+</launch>
