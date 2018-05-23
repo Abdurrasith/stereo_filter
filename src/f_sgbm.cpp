@@ -8,8 +8,8 @@ FilteredSGBM::FilteredSGBM(){
 	//float sigma = 1.5;
 	int wsize = 11;
 	int max_disp = 256;
-	float lambda = 8000.0;
-	float sigma = 1.5;
+	float lambda = 80000.0;
+	float sigma = 1.2;
 	int P1 = 8*3*wsize*wsize;
 	int P2 = 32*3*wsize*wsize;
 	//int P1 = 200;
@@ -31,7 +31,7 @@ FilteredSGBM::FilteredSGBM(){
 void FilteredSGBM::compute(
         const Mat& left, const Mat& right,
         Mat& filtered_disp, Mat* raw_disp,
-        Rect* roi
+        Rect* roi, Mat* conf
         ){
 
 	double matching_time = (double)getTickCount();
@@ -52,6 +52,9 @@ void FilteredSGBM::compute(
 	if(raw_disp != nullptr){
 		left_disp.copyTo(*raw_disp);
 	}
+    if(conf != nullptr){
+        *conf = wls_filter->getConfidenceMap();
+    }
 	//left_disp.copyTo(filtered_disp);
 	//Mat conf_map = Mat(left.rows,left.cols,CV_8U);
 	//conf_map = wls_filter->getConfidenceMap();

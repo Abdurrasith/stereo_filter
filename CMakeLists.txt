@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
     sensor_msgs
     stereo_msgs
     image_transport
+    image_geometry
     message_filters
     )
 find_package(OpenCV 3.2 REQUIRED)

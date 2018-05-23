@@ -27,6 +27,7 @@
 
 #include <image_transport/image_transport.h>
 #include <image_transport/subscriber_filter.h>
+#include <image_geometry/pinhole_camera_model.h>
 
 #include <cv_bridge/cv_bridge.h>
 
@@ -173,11 +174,15 @@ class StereoFilter{
         Mat img_l, img_r;
         Mat img_l_g, img_r_g;
         Mat disp, dist, raw_disp;
+        Mat conf;
+
 		float baseline;
 		bool override_baseline;
+        bool _rectify;
 
         FilteredSGBM block_matcher; // disparity matching
 
+        image_geometry::PinholeCameraModel model;
 		boost::shared_ptr<Rectifier> rectifier;
 
         ros::NodeHandle nh;
@@ -201,6 +206,7 @@ class StereoFilter{
 
 			ros::param::get("~baseline", baseline);
 			ros::param::get("~override_baseline", override_baseline);
+            ros::param::get("~rectify", _rectify);
 
             img_l_sub.subscribe(it, "left", 1, hints);
             img_r_sub.subscribe(it, "right", 1, hints);
@@ -219,6 +225,8 @@ class StereoFilter{
                 const sensor_msgs::ImageConstPtr& right_msg,
 				const sensor_msgs::CameraInfoConstPtr& right_info_msg
 				){
+
+            //ROS_INFO_THROTTLE(1.0, "_rectify : %s", (_rectify? "True" : "False"));
 
 			if(!rectifier){
 
@@ -242,6 +250,7 @@ class StereoFilter{
 							left_info_msg->height
 							));
 
+                model.fromCameraInfo(left_info_msg);
 			}
 
 			if(!rectifier)
@@ -251,21 +260,31 @@ class StereoFilter{
             cv_l_ptr = cv_bridge::toCvCopy(left_msg, sensor_msgs::image_encodings::BGR8);
             cv_r_ptr = cv_bridge::toCvCopy(right_msg, sensor_msgs::image_encodings::BGR8);
 
-			rectifier->apply(cv_l_ptr->image, cv_r_ptr->image, img_l, img_r);
+            if(_rectify){
+                //rectifier->apply(cv_l_ptr->image, cv_r_ptr->image, img_l, img_r);
+                model.rectifyImage(cv_l_ptr->image, img_l);
+                model.rectifyImage(cv_r_ptr->image, img_r);
+            }else{
+                img_l = cv_l_ptr->image;
+                img_r = cv_r_ptr->image;
+            }
 			
 			cv::GaussianBlur(img_l, img_l, cv::Size(5,5), 0.0, 0.0);
 			cv::GaussianBlur(img_r, img_r, cv::Size(5,5), 0.0, 0.0);
 
             //here, assume rectified
             cv::Rect roi;
-            block_matcher.compute(img_l, img_r, disp, &raw_disp, &roi);
+            block_matcher.compute(img_l, img_r,
+                    disp, &raw_disp, &roi, &conf);
+            disp.setTo(FLT_MAX, conf < 128); // TODO : set as configurable parameter
 			rectifier->convert(disp, dist);
 
             // hack specific to current configuration:
             // kill bottom few pixels cuz invalid
             // xywh
-            cv::Rect roi_hack(0, 0, dist.cols, 455);
-            dist = dist(roi_hack);
+            
+            // cv::Rect roi_hack(0, 0, dist.cols, 455);
+            // dist = dist(roi_hack);
 
             // TODO : better disparity, etc.
             // max disparity 
@@ -287,6 +306,9 @@ class StereoFilter{
 			pcl_msg.header.frame_id = left_msg->header.frame_id;
 			dist2pcl(dist, img_l, pcl_msg);
 			pcl_pub.publish(pcl_msg);
+
+            //cv::imshow("conf", conf);
+            //cv::waitKey(1);
 
             //stereo_msgs::DisparityImage disp_out;
             //disp_out.

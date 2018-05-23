@@ -25,7 +25,7 @@ class FilteredSGBM{
 		void compute(
                 const Mat& left, const Mat& right,
                 Mat& filtered_disp, Mat* raw_disp=nullptr,
-                Rect* roi=nullptr
+                Rect* roi=nullptr, Mat* conf=nullptr
                 );
 };
 
