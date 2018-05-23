@@ -269,8 +269,8 @@ class StereoFilter{
                 img_r = cv_r_ptr->image;
             }
 			
-			cv::GaussianBlur(img_l, img_l, cv::Size(5,5), 0.0, 0.0);
-			cv::GaussianBlur(img_r, img_r, cv::Size(5,5), 0.0, 0.0);
+			//cv::GaussianBlur(img_l, img_l, cv::Size(3,3), 0.0, 0.0);
+			//cv::GaussianBlur(img_r, img_r, cv::Size(3,3), 0.0, 0.0);
 
             //here, assume rectified
             cv::Rect roi;
